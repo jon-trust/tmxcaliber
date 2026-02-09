@@ -358,7 +358,7 @@ class ThreatModelData:
             ids_list = sort_by_id(ids_list)
 
         csv_matrix.extend([[control_id] for control_id in ids_list])
-        return csv_matrix
+        return csv_matrix # This should return the same columns than get_csv_of_controls. Is there a clever way you can do it, AI?
 
 
 def get_classified_cvssed_control_ids_by_co(
