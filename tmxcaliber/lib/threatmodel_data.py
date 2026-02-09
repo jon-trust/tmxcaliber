@@ -3,6 +3,7 @@ import csv
 import json
 import copy
 import logging
+from typing import Optional, List
 from .feature_class_hierarchy import FeatureClassHierarchy
 from .tools import sort_by_id, sort_dict_by_id, apply_json_filter
 
@@ -313,6 +314,50 @@ class ThreatModelData:
                 value["id"] = key
                 row = [value.get(fieldname, "") for fieldname in ordered_fieldnames]
                 csv_matrix.append(row)
+        return csv_matrix
+
+    @classmethod
+    def get_csv_of_aws_data_perimeter_controls(
+        cls, control_filter: Optional[List[str]] = None, exclude: bool = False
+    ):
+        csv_matrix = [["id"]]
+        if not cls.threatmodel_data_list:
+            return csv_matrix
+
+        control_ids = set()
+        for threatmodel_data in cls.threatmodel_data_list:
+            scorecard = threatmodel_data.get_json().get("scorecard") or {}
+            aws_data_perimeter = scorecard.get("aws_data_perimeter") or {}
+            if not isinstance(aws_data_perimeter, dict):
+                continue
+            for category, ids in aws_data_perimeter.items():
+                if isinstance(category, str) and category.strip().lower() == "na":
+                    continue
+                if isinstance(ids, list):
+                    for control_id in ids:
+                        if isinstance(control_id, str):
+                            control_ids.add(control_id)
+
+        ids_list = list(control_ids)
+        if control_filter:
+            filtered_set = {control_id.lower() for control_id in control_filter}
+            if exclude:
+                ids_list = [
+                    control_id
+                    for control_id in ids_list
+                    if control_id.lower() not in filtered_set
+                ]
+            else:
+                ids_list = [
+                    control_id
+                    for control_id in ids_list
+                    if control_id.lower() in filtered_set
+                ]
+
+        if ids_list:
+            ids_list = sort_by_id(ids_list)
+
+        csv_matrix.extend([[control_id] for control_id in ids_list])
         return csv_matrix
 
 

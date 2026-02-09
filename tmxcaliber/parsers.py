@@ -145,6 +145,14 @@ def add_list_parser(subparsers):
         add_output_argument(control_list_parser)
         add_exclude_flag(control_list_parser)
         add_ids_filter_argument(control_list_parser)
+        control_list_parser.add_argument(
+            "--aws-data-perimeter-only",
+            action="store_true",
+            help=(
+                "output only control IDs referenced by scorecard.aws_data_perimeter "
+                "(excluding NA categories)."
+            ),
+        )
 
     add_list_threats_parser(list_subparsers)
     add_list_controls_parser(list_subparsers)

@@ -226,7 +226,7 @@ The `list controls` operation allows you to list all controls from a ThreatModel
 
 ```sh
 $: tmxcaliber list controls -h
-usage: tmxcaliber list controls [-h] [--output OUTPUT] [--exclude] [--ids IDS] source
+usage: tmxcaliber list controls [-h] [--output OUTPUT] [--exclude] [--ids IDS] [--aws-data-perimeter-only] source
 
 positional arguments:
   source           Path to the ThreatModel JSON file or directory containing ThreatModel JSON files.
@@ -236,6 +236,8 @@ options:
   --output OUTPUT  output file to write the results. If not provided, prints to stdout.
   --exclude        Enable exclusion mode. Items specified will be excluded from the output.
   --ids IDS        filter data by IDs (can be feature classes, threats, controls, or control objectives). Separate by `,`, if several.
+  --aws-data-perimeter-only
+                   output only control IDs referenced by scorecard.aws_data_perimeter (excluding NA categories).
 
 $: tmxcaliber list controls path/to/threatmodels/ --output controls.csv
 
@@ -243,6 +245,8 @@ $: tmxcaliber list controls path/to/threatmodel.json --ids S3.C2 --excluded
 objective,objective_description,id,coso,nist_csf,assured_by,depends_on,description,testing,effort,mitigate,feature_class,weighted_priority,weighted_priority_score,queryable_objective_id,queryable_id,retired
 S3.CO1,Enforce encryption-in-transit,S3.C1,Preventative,Protect,S3.C2,S3.C119,"Block all unencrypted requests...",Make an unencrypte..,Low,"[{'threat': 'S3.T12', 'impact': 'Very High', 'priority': 4.0, 'max_dependency': None, 'priority_overall': 4.0, 'cvss': 'Medium'}]","['S3.FC1', 'S3.FC5']",High,3,1,1,false
 S3.CO1,Enforce encryption-in-transit,S3.C3,Preventative,Protect,S3.C5,S3.C119,"Block all unencrypted requests...",Make an unencrypted AWS API call from one of your VPCs with VPC endpoint; it should be denied.,Low,"[{'threat': 'S3.T12', 'impact': 'Medium', 'priority': 2.0, 'max_dependency': None, 'priority_overall': 2.0, 'cvss': 'Medium'}]","['S3.FC1', 'S3.FC5']",Medium,2,1,3,false
+
+$: tmxcaliber list controls path/to/threatmodels --aws-data-perimeter-only --output perimeter_controls.csv
 ```
 
 ### Create Change Log
