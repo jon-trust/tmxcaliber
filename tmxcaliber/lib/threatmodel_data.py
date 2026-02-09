@@ -279,6 +279,50 @@ class ThreatModelData:
         return csv_matrix
 
     @classmethod
+    def _get_csv_of_controls_from_controls_dict(
+        cls,
+        threatmodel_data_list: list["ThreatModelData"],
+        *,
+        controls_by_tm: list[dict],
+    ) -> list[list[str]]:
+        if not threatmodel_data_list or not controls_by_tm or not controls_by_tm[0]:
+            return []
+
+        control_objectives = threatmodel_data_list[0].get_json().get(
+            "control_objectives", {}
+        )
+        first_controls = controls_by_tm[0]
+
+        all_fieldnames = [
+            field
+            for field in first_controls[next(iter(first_controls))].keys()
+            if field not in ("id", "objective", "objective_description", "retired")
+        ]
+
+        ordered_fieldnames = ["objective", "objective_description", "id"]
+        ordered_fieldnames += all_fieldnames
+        ordered_fieldnames.append("retired")
+
+        csv_matrix: list[list[str]] = []
+        csv_matrix.append(ordered_fieldnames)
+
+        for threatmodel_data, controls in zip(threatmodel_data_list, controls_by_tm):
+            for key, value in controls.items():
+                objective_id = value.get("objective")
+                if objective_id in control_objectives:
+                    co_description = control_objectives[objective_id].get(
+                        "description", ""
+                    )
+                else:
+                    co_description = ""
+                value["objective_description"] = co_description
+                value["id"] = key
+                row = [value.get(fieldname, "") for fieldname in ordered_fieldnames]
+                csv_matrix.append(row)
+
+        return csv_matrix
+
+    @classmethod
     def get_csv_of_controls(cls):
         if (
             not cls.threatmodel_data_list
@@ -286,43 +330,20 @@ class ThreatModelData:
         ):
             return []
 
-        control_objectives = cls.threatmodel_data_list[0].get_json()[
-            "control_objectives"
+        controls_by_tm = [
+            threatmodel_data.get_json()["controls"]
+            for threatmodel_data in cls.threatmodel_data_list
         ]
-        controls = cls.threatmodel_data_list[0].get_json()["controls"]
-
-        # Generate initial field names from the controls, excluding 'id' for now
-        all_fieldnames = [
-            field
-            for field in controls[next(iter(controls))].keys()
-            if field not in ("id", "objective", "objective_description", "retired")
-        ]
-
-        # Start with 'objective' and 'objective_description', add 'id' third
-        ordered_fieldnames = ["objective", "objective_description", "id"]
-        ordered_fieldnames += all_fieldnames
-        ordered_fieldnames.append("retired")
-
-        csv_matrix = []
-        csv_matrix.append(ordered_fieldnames)
-
-        for threatmodel_data in cls.threatmodel_data_list:
-            controls = threatmodel_data.get_json()["controls"]
-            for key, value in controls.items():
-                co_description = control_objectives[value["objective"]]["description"]
-                value["objective_description"] = co_description
-                value["id"] = key
-                row = [value.get(fieldname, "") for fieldname in ordered_fieldnames]
-                csv_matrix.append(row)
-        return csv_matrix
+        return cls._get_csv_of_controls_from_controls_dict(
+            cls.threatmodel_data_list, controls_by_tm=controls_by_tm
+        )
 
     @classmethod
     def get_csv_of_aws_data_perimeter_controls(
         cls, control_filter: Optional[List[str]] = None, exclude: bool = False
     ):
-        csv_matrix = [["id"]]
         if not cls.threatmodel_data_list:
-            return csv_matrix
+            return []
 
         control_ids = set()
         for threatmodel_data in cls.threatmodel_data_list:
@@ -357,8 +378,23 @@ class ThreatModelData:
         if ids_list:
             ids_list = sort_by_id(ids_list)
 
-        csv_matrix.extend([[control_id] for control_id in ids_list])
-        return csv_matrix # This should return the same columns than get_csv_of_controls. Is there a clever way you can do it, AI?
+        ids_lower = {control_id.lower() for control_id in ids_list}
+
+        controls_by_tm: list[dict] = []
+        for threatmodel_data in cls.threatmodel_data_list:
+            tm_controls = threatmodel_data.get_json().get("controls", {})
+            subset: dict = {}
+            for control_id, control_data in tm_controls.items():
+                if control_id.lower() in ids_lower:
+                    subset[control_id] = control_data
+            controls_by_tm.append(sort_dict_by_id(subset))
+
+        if not controls_by_tm or not controls_by_tm[0]:
+            return []
+
+        return cls._get_csv_of_controls_from_controls_dict(
+            cls.threatmodel_data_list, controls_by_tm=controls_by_tm
+        )
 
 
 def get_classified_cvssed_control_ids_by_co(
