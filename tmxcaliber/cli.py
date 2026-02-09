@@ -571,7 +571,12 @@ def main():
         if params.list_type == ListOperation.threats:
             csv_output = ThreatModelData.get_csv_of_threats()
         if params.list_type == ListOperation.controls:
-            csv_output = ThreatModelData.get_csv_of_controls()
+            if params.aws_data_perimeter_only:
+                csv_output = ThreatModelData.get_csv_of_aws_data_perimeter_controls(
+                    params.filter_obj.controls, params.exclude
+                )
+            else:
+                csv_output = ThreatModelData.get_csv_of_controls()
 
         output_result(params.output, csv_output, "csv_list")
 

@@ -1,14 +1,26 @@
 from tmxcaliber.lib.threatmodel_data import ThreatModelData, get_permissions
 
 
-def create_threatmodel(feature_classes=None, threats=None, controls=None):
-    base_json = {"metadata": {"name": "Model"}, "control_objectives": {}, "actions": {}}
+def create_threatmodel(
+    feature_classes=None, threats=None, controls=None, scorecard=None
+):
+    base_json = {
+        "metadata": {"name": "Model"},
+        "control_objectives": {},
+        "actions": {},
+    }
     base_json["threats"] = threats if threats is not None else {}
     base_json["controls"] = controls if controls is not None else {}
     base_json["feature_classes"] = (
         feature_classes if feature_classes is not None else {}
     )
+    if scorecard is not None:
+        base_json["scorecard"] = scorecard
     return ThreatModelData(base_json)
+
+
+def reset_threatmodel_data_list():
+    ThreatModelData.threatmodel_data_list = []
 
 
 def test_feature_classes_not_fully_related():
@@ -172,3 +184,89 @@ def test_get_permissions():
     # Test with add_optional=False
     permissions_without_optional = get_permissions(access_data, add_optional=False)
     assert sorted(permissions_without_optional) == ["read_data", "write_data"]
+
+
+def test_get_csv_of_aws_data_perimeter_controls_basic_extraction():
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        scorecard={
+            "aws_data_perimeter": {
+                "Perimeter": ["Service.C1", "Service.C2"],
+                "NA": ["Service.C999"],
+            }
+        }
+    )
+
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls()
+
+    assert csv_matrix == [["id"], ["Service.C1"], ["Service.C2"]]
+
+
+def test_get_csv_of_aws_data_perimeter_controls_deduplication():
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        scorecard={
+            "aws_data_perimeter": {
+                "CategoryA": ["Service.C1", "Service.C2"],
+                "CategoryB": ["Service.C2"],
+            }
+        }
+    )
+
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls()
+
+    assert csv_matrix == [["id"], ["Service.C1"], ["Service.C2"]]
+
+
+def test_get_csv_of_aws_data_perimeter_controls_missing_scorecard():
+    reset_threatmodel_data_list()
+    create_threatmodel()
+
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls()
+
+    assert csv_matrix == [["id"]]
+
+
+def test_get_csv_of_aws_data_perimeter_controls_directory_aggregation():
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        scorecard={
+            "aws_data_perimeter": {
+                "CategoryA": ["Service.C1", "Service.C3"],
+                "NA": ["Service.C999"],
+            }
+        }
+    )
+    create_threatmodel(
+        scorecard={
+            "aws_data_perimeter": {
+                "CategoryB": ["Service.C2", "Service.C3"],
+            }
+        }
+    )
+
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls()
+
+    assert csv_matrix == [
+        ["id"],
+        ["Service.C1"],
+        ["Service.C2"],
+        ["Service.C3"],
+    ]
+
+
+def test_get_csv_of_aws_data_perimeter_controls_case_insensitive_na():
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        scorecard={
+            "aws_data_perimeter": {
+                " na ": ["Service.C1"],
+                "NA": ["Service.C2"],
+                "CategoryA": ["Service.C3"],
+            }
+        }
+    )
+
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls()
+
+    assert csv_matrix == [["id"], ["Service.C3"]]
