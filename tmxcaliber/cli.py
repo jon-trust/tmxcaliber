@@ -159,6 +159,28 @@ def validate_and_get_framework(csv_path: str, framework_name: str) -> DataFrame:
     return df_expanded
 
 
+def parse_threatmodel_aliases(raw_aliases: list[str]) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for raw in raw_aliases or []:
+        for part in (raw or "").split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if "=" not in part:
+                raise ValueError(
+                    f"Invalid --threatmodel-alias entry: '{part}'. Expected 'X=provider-service'."
+                )
+            left, right = part.split("=", 1)
+            token = left.strip().lower()
+            key = right.strip().lower()
+            if not token or not key:
+                raise ValueError(
+                    f"Invalid --threatmodel-alias entry: '{part}'. Expected 'X=provider-service'."
+                )
+            aliases[token] = key
+    return aliases
+
+
 def validate(parser: ArgumentParser) -> Namespace:
     args = parser.parse_args()
     if args.operation == Operation.create_change_log:
@@ -186,6 +208,25 @@ def validate(parser: ArgumentParser) -> Namespace:
             args.filter_obj = Filter(severity=args.severity, ids=args.ids)
         if args.list_type == ListOperation.controls:
             args.filter_obj = Filter(ids=args.ids)
+            if getattr(args, "extend_references", False):
+                if not getattr(args, "aws_data_perimeter_only", False):
+                    parser.error("--extend-references requires --aws-data-perimeter-only")
+                if not getattr(args, "threatmodel_dir", None):
+                    parser.error("--extend-references requires --threatmodel-dir")
+
+                try:
+                    args.threatmodel_alias_map = parse_threatmodel_aliases(
+                        getattr(args, "threatmodel_alias", [])
+                    )
+                except ValueError as exc:
+                    parser.error(str(exc))
+
+                if not args.threatmodel_alias_map:
+                    parser.error(
+                        "--extend-references requires at least one --threatmodel-alias"
+                    )
+            else:
+                args.threatmodel_alias_map = {}
     return args
 
 
@@ -572,9 +613,17 @@ def main():
             csv_output = ThreatModelData.get_csv_of_threats()
         if params.list_type == ListOperation.controls:
             if params.aws_data_perimeter_only:
-                csv_output = ThreatModelData.get_csv_of_aws_data_perimeter_controls(
-                    params.filter_obj.controls, params.exclude
-                )
+                if getattr(params, "extend_references", False):
+                    csv_output = ThreatModelData.get_csv_of_aws_data_perimeter_controls_extended(
+                        control_filter=params.filter_obj.controls,
+                        exclude=params.exclude,
+                        threatmodel_dir=params.threatmodel_dir,
+                        alias_map=params.threatmodel_alias_map,
+                    )
+                else:
+                    csv_output = ThreatModelData.get_csv_of_aws_data_perimeter_controls(
+                        params.filter_obj.controls, params.exclude
+                    )
             else:
                 csv_output = ThreatModelData.get_csv_of_controls()
 

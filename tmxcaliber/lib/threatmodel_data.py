@@ -3,6 +3,8 @@ import csv
 import json
 import copy
 import logging
+import os
+import re
 from typing import Optional, List
 from .feature_class_hierarchy import FeatureClassHierarchy
 from .tools import sort_by_id, sort_dict_by_id, apply_json_filter
@@ -69,11 +71,73 @@ def upgrade_to_latest_template_version(tm_json):
     return tm_json
 
 
+def get_provider_service_key(tm_json: dict) -> str | None:
+    metadata = tm_json.get("metadata") or {}
+    provider = metadata.get("provider")
+    service = metadata.get("service")
+    if not isinstance(provider, str) or not isinstance(service, str):
+        return None
+    return f"{provider.lower()}-{service.lower()}"
+
+
+_REFERENCE_TM_WORD_RE = re.compile(r"^threatmodels?$", re.IGNORECASE)
+
+
+def extract_threatmodel_reference_tokens(description: str) -> list[str]:
+    if not isinstance(description, str) or not description.strip():
+        return []
+
+    # Normalise some separators
+    text = description.replace("&", " and ")
+
+    # Tokenise into words and commas
+    parts = re.split(r"(\s+|,)", text)
+    tokens: list[str] = []
+    simplified: list[str] = []
+    for p in parts:
+        if not p:
+            continue
+        p = p.strip()
+        if not p:
+            continue
+        simplified.append(p)
+
+    def normalise_word(w: str) -> str:
+        w = re.sub(r"^[^\w]+|[^\w]+$", "", w)
+        return w.lower()
+
+    for i, w in enumerate(simplified):
+        if not _REFERENCE_TM_WORD_RE.fullmatch(w):
+            continue
+
+        # Always take the last word immediately before ThreatModel(s)
+        if i - 1 >= 0:
+            prev = normalise_word(simplified[i - 1])
+            if prev and prev not in ("and",):
+                tokens.append(prev)
+
+        # Also support "X and Y ThreatModels" (capture X as well)
+        if i - 3 >= 0:
+            if simplified[i - 2].lower() == "and":
+                prev2 = normalise_word(simplified[i - 3])
+                if prev2 and prev2 not in ("and",):
+                    tokens.append(prev2)
+
+    # Deduplicate preserving order
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in tokens:
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
 class ThreatModelData:
 
     threatmodel_data_list = []
 
-    def __init__(self, threatmodel_json):
+    def __init__(self, threatmodel_json: dict, *, add_to_list: bool = True):
         upgraded_json = upgrade_to_latest_template_version(threatmodel_json)
         self.threatmodel_json_original = copy.deepcopy(upgraded_json)
         self.threatmodel_json = upgraded_json
@@ -92,7 +156,8 @@ class ThreatModelData:
             self.threatmodel_json.get("control_objectives", {})
         )
         self.actions = sort_dict_by_id(self.threatmodel_json.get("actions", {}))
-        ThreatModelData.threatmodel_data_list.append(self)
+        if add_to_list:
+            ThreatModelData.threatmodel_data_list.append(self)
 
     def get_feature_classes_not_fully_related(
         self, feature_class_ids_to_filter: list
@@ -391,6 +456,152 @@ class ThreatModelData:
 
         if not controls_by_tm or not controls_by_tm[0]:
             return []
+
+        return cls._get_csv_of_controls_from_controls_dict(
+            cls.threatmodel_data_list, controls_by_tm=controls_by_tm
+        )
+
+    @classmethod
+    def load_threatmodels_from_dir_indexed(
+        cls, threatmodel_dir: str
+    ) -> dict[str, "ThreatModelData"]:
+        if not os.path.isdir(threatmodel_dir):
+            raise ValueError(f"--threatmodel-dir is not a directory: {threatmodel_dir}")
+
+        index: dict[str, ThreatModelData] = {}
+        for name in os.listdir(threatmodel_dir):
+            if not name.lower().endswith(".json"):
+                continue
+            path = os.path.join(threatmodel_dir, name)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    tm_json = json.loads(f.read())
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(
+                    f"Failed to load ThreatModel JSON: {path}. {exc}"
+                ) from exc
+
+            tm = ThreatModelData(tm_json, add_to_list=False)
+            key = get_provider_service_key(tm.get_json())
+            if not key:
+                # Not referenceable deterministically; skip
+                continue
+            if key in index:
+                raise ValueError(
+                    f"Duplicate ThreatModel provider-service key '{key}' in --threatmodel-dir."
+                )
+            index[key] = tm
+
+        return index
+
+    @classmethod
+    def get_csv_of_aws_data_perimeter_controls_extended(
+        cls,
+        *,
+        control_filter: Optional[List[str]] = None,
+        exclude: bool = False,
+        threatmodel_dir: str,
+        alias_map: dict[str, str],
+    ):
+        if not cls.threatmodel_data_list:
+            return []
+
+        tm_index = cls.load_threatmodels_from_dir_indexed(threatmodel_dir)
+
+        # Base selected IDs from main TMs (same rules as existing method)
+        selected_ids: set[str] = set()
+        for threatmodel_data in cls.threatmodel_data_list:
+            scorecard = threatmodel_data.get_json().get("scorecard") or {}
+            aws_data_perimeter = scorecard.get("aws_data_perimeter") or {}
+            if not isinstance(aws_data_perimeter, dict):
+                continue
+            for category, ids in aws_data_perimeter.items():
+                if isinstance(category, str) and category.strip().lower() == "na":
+                    continue
+                if isinstance(ids, list):
+                    for control_id in ids:
+                        if isinstance(control_id, str):
+                            selected_ids.add(control_id)
+
+        ids_list = list(selected_ids)
+        if control_filter:
+            filtered_set = {control_id.lower() for control_id in control_filter}
+            if exclude:
+                ids_list = [
+                    control_id
+                    for control_id in ids_list
+                    if control_id.lower() not in filtered_set
+                ]
+            else:
+                ids_list = [
+                    control_id
+                    for control_id in ids_list
+                    if control_id.lower() in filtered_set
+                ]
+
+        selected_ids_lower: set[str] = {x.lower() for x in ids_list}
+
+        # Find references in descriptions of selected controls
+        referenced_keys: set[str] = set()
+        missing_aliases: dict[str, set[str]] = {}
+
+        for threatmodel_data in cls.threatmodel_data_list:
+            tm_controls = threatmodel_data.get_json().get("controls", {}) or {}
+            for control_id, control_data in tm_controls.items():
+                if control_id.lower() not in selected_ids_lower:
+                    continue
+                desc = control_data.get("description", "")
+                for token in extract_threatmodel_reference_tokens(desc):
+                    if token not in alias_map:
+                        missing_aliases.setdefault(token, set()).add(control_id)
+                        continue
+                    referenced_keys.add(alias_map[token])
+
+        if missing_aliases:
+            lines: list[str] = []
+            for token, control_ids in sorted(missing_aliases.items()):
+                lines.append(
+                    f"Missing --threatmodel-alias for reference token '{token}' "
+                    f"(found in controls: {', '.join(sorted(control_ids))})"
+                )
+            raise ValueError("\n".join(lines))
+
+        # Extend selected IDs with referenced TMs' aws_data_perimeter IDs
+        for key in sorted(referenced_keys):
+            if key not in tm_index:
+                raise ValueError(
+                    f"--threatmodel-alias points to '{key}', but no ThreatModel with "
+                    f"metadata.provider-service '{key}' was found in --threatmodel-dir."
+                )
+            ref_tm = tm_index[key]
+            scorecard = ref_tm.get_json().get("scorecard") or {}
+            aws_data_perimeter = scorecard.get("aws_data_perimeter") or {}
+            if not isinstance(aws_data_perimeter, dict):
+                continue
+            for category, ids in aws_data_perimeter.items():
+                if isinstance(category, str) and category.strip().lower() == "na":
+                    continue
+                if isinstance(ids, list):
+                    for control_id in ids:
+                        if isinstance(control_id, str):
+                            selected_ids_lower.add(control_id.lower())
+
+        # Output stays the same: only main TMs, subset by selected IDs
+        controls_by_tm: list[dict] = []
+        for threatmodel_data in cls.threatmodel_data_list:
+            tm_controls = threatmodel_data.get_json().get("controls", {})
+            subset: dict = {}
+            for control_id, control_data in tm_controls.items():
+                if control_id.lower() in selected_ids_lower:
+                    subset[control_id] = control_data
+            controls_by_tm.append(sort_dict_by_id(subset))
+
+        if not controls_by_tm:
+            return [["id"]]
+
+        # If no controls in first TM, keep consistent with existing behaviour
+        if not controls_by_tm[0]:
+            return [["id"]]
 
         return cls._get_csv_of_controls_from_controls_dict(
             cls.threatmodel_data_list, controls_by_tm=controls_by_tm

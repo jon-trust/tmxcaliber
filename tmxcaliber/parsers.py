@@ -153,6 +153,34 @@ def add_list_parser(subparsers):
                 "(excluding NA categories)."
             ),
         )
+        control_list_parser.add_argument(
+            "--extend-references",
+            action="store_true",
+            help=(
+                "When used with --aws-data-perimeter-only, extend the output by following "
+                "references in control descriptions like 'using X ThreatModel(s)'. "
+                "Requires --threatmodel-dir and --threatmodel-alias."
+            ),
+        )
+        control_list_parser.add_argument(
+            "--threatmodel-dir",
+            type=str,
+            help=(
+                "Directory containing ThreatModel JSON files used to resolve references "
+                "when --extend-references is enabled."
+            ),
+        )
+        control_list_parser.add_argument(
+            "--threatmodel-alias",
+            action="append",
+            default=[],
+            help=(
+                "Reference alias mapping(s) used by --extend-references. "
+                "Format: X=provider-service. You can repeat the flag or provide comma-separated pairs, "
+                'e.g. --threatmodel-alias "IAM=aws-iam,Route53=aws-route53". '
+                "The provider-service key must match metadata.provider.lower() + '-' + metadata.service.lower()."
+            ),
+        )
 
     add_list_threats_parser(list_subparsers)
     add_list_controls_parser(list_subparsers)

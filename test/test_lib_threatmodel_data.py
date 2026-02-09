@@ -1,4 +1,13 @@
-from tmxcaliber.lib.threatmodel_data import ThreatModelData, get_permissions
+import json
+from pathlib import Path
+
+import pytest
+
+from tmxcaliber.lib.threatmodel_data import (
+    ThreatModelData,
+    get_permissions,
+    extract_threatmodel_reference_tokens,
+)
 
 
 def create_threatmodel(
@@ -270,3 +279,108 @@ def test_get_csv_of_aws_data_perimeter_controls_case_insensitive_na():
     csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls()
 
     assert csv_matrix == [["id"], ["Service.C3"]]
+
+
+def test_extract_threatmodel_reference_tokens_multiple_patterns():
+    assert extract_threatmodel_reference_tokens(
+        "This control is implemented using IAM ThreatModel and Route53 ThreatModel."
+    ) == ["iam", "route53"]
+
+    assert extract_threatmodel_reference_tokens(
+        "This control is implemented using IAM and Route53 ThreatModels."
+    ) == ["route53", "iam"]
+
+
+def test_get_csv_of_aws_data_perimeter_controls_extended_missing_alias_raises(
+    tmp_path: Path,
+):
+    reset_threatmodel_data_list()
+
+    # Main TM: selects Service.C1 and references "IAM ThreatModel"
+    create_threatmodel(
+        controls={
+            "Service.C1": {
+                "description": "Implemented using IAM ThreatModel.",
+                "objective": "",
+                "retired": "",
+            }
+        },
+        scorecard={"aws_data_perimeter": {"CategoryA": ["Service.C1"]}},
+    )
+
+    with pytest.raises(ValueError, match="Missing --threatmodel-alias"):
+        ThreatModelData.get_csv_of_aws_data_perimeter_controls_extended(
+            threatmodel_dir=str(tmp_path),
+            alias_map={},  # missing
+        )
+
+
+def test_get_csv_of_aws_data_perimeter_controls_extended_alias_points_to_missing_tm_raises(
+    tmp_path: Path,
+):
+    reset_threatmodel_data_list()
+
+    create_threatmodel(
+        controls={
+            "Service.C1": {
+                "description": "Implemented using IAM ThreatModel.",
+                "objective": "",
+                "retired": "",
+            }
+        },
+        scorecard={"aws_data_perimeter": {"CategoryA": ["Service.C1"]}},
+    )
+
+    with pytest.raises(ValueError, match="was found in --threatmodel-dir"):
+        ThreatModelData.get_csv_of_aws_data_perimeter_controls_extended(
+            threatmodel_dir=str(tmp_path),
+            alias_map={"iam": "aws-iam"},
+        )
+
+
+def test_get_csv_of_aws_data_perimeter_controls_extended_happy_path(tmp_path: Path):
+    reset_threatmodel_data_list()
+
+    # Main TM has two controls; only C1 is in its aws_data_perimeter.
+    # C1 references IAM TM, whose aws_data_perimeter includes Service.C2.
+    create_threatmodel(
+        controls={
+            "Service.C1": {
+                "description": "Implemented using IAM ThreatModel.",
+                "objective": "",
+                "retired": "",
+            },
+            "Service.C2": {
+                "description": "Some other control.",
+                "objective": "",
+                "retired": "",
+            },
+        },
+        scorecard={"aws_data_perimeter": {"CategoryA": ["Service.C1"]}},
+    )
+
+    # Write referenced TM JSON into threatmodel-dir
+    ref_json = {
+        "metadata": {"name": "IAM", "provider": "aws", "service": "iam"},
+        "threats": {},
+        "feature_classes": {},
+        "controls": {
+            "Service.C2": {
+                "description": "Referenced control",
+                "objective": "",
+                "retired": "",
+            }
+        },
+        "control_objectives": {},
+        "actions": {},
+        "scorecard": {"aws_data_perimeter": {"CategoryX": ["Service.C2"]}},
+    }
+    (tmp_path / "aws_iam.json").write_text(json.dumps(ref_json), encoding="utf-8")
+
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls_extended(
+        threatmodel_dir=str(tmp_path),
+        alias_map={"iam": "aws-iam"},
+    )
+
+    ids = [row[csv_matrix[0].index("id")] for row in csv_matrix[1:]]
+    assert sorted(ids) == ["Service.C1", "Service.C2"]
