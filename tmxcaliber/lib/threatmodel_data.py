@@ -567,6 +567,7 @@ class ThreatModelData:
             raise ValueError("\n".join(lines))
 
         # Extend selected IDs with referenced TMs' aws_data_perimeter IDs
+        referenced_tms: list[ThreatModelData] = []
         for key in sorted(referenced_keys):
             if key not in tm_index:
                 raise ValueError(
@@ -574,6 +575,8 @@ class ThreatModelData:
                     f"metadata.provider-service '{key}' was found in --threatmodel-dir."
                 )
             ref_tm = tm_index[key]
+            referenced_tms.append(ref_tm)
+
             scorecard = ref_tm.get_json().get("scorecard") or {}
             aws_data_perimeter = scorecard.get("aws_data_perimeter") or {}
             if not isinstance(aws_data_perimeter, dict):
@@ -586,9 +589,14 @@ class ThreatModelData:
                         if isinstance(control_id, str):
                             selected_ids_lower.add(control_id.lower())
 
-        # Output stays the same: only main TMs, subset by selected IDs
+        # Output includes main TMs + referenced TMs (so referenced controls appear)
+        output_tms: list[ThreatModelData] = list(cls.threatmodel_data_list)
+        for tm in referenced_tms:
+            if tm not in output_tms:
+                output_tms.append(tm)
+
         controls_by_tm: list[dict] = []
-        for threatmodel_data in cls.threatmodel_data_list:
+        for threatmodel_data in output_tms:
             tm_controls = threatmodel_data.get_json().get("controls", {})
             subset: dict = {}
             for control_id, control_data in tm_controls.items():
@@ -599,12 +607,11 @@ class ThreatModelData:
         if not controls_by_tm:
             return [["id"]]
 
-        # If no controls in first TM, keep consistent with existing behaviour
         if not controls_by_tm[0]:
             return [["id"]]
 
         return cls._get_csv_of_controls_from_controls_dict(
-            cls.threatmodel_data_list, controls_by_tm=controls_by_tm
+            output_tms, controls_by_tm=controls_by_tm
         )
 
 
