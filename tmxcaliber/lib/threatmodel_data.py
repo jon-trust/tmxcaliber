@@ -80,9 +80,6 @@ def get_provider_service_key(tm_json: dict) -> str | None:
     return f"{provider.lower()}-{service.lower()}"
 
 
-_REFERENCE_TM_WORD_RE = re.compile(r"^threatmodels?$", re.IGNORECASE)
-
-
 def extract_threatmodel_reference_tokens(description: str) -> list[str]:
     if not isinstance(description, str) or not description.strip():
         return []
@@ -107,7 +104,7 @@ def extract_threatmodel_reference_tokens(description: str) -> list[str]:
         return w.lower()
 
     for i, w in enumerate(simplified):
-        if not _REFERENCE_TM_WORD_RE.fullmatch(w):
+        if not "threatmodel" in w.lower():
             continue
 
         # Always take the last word immediately before ThreatModel(s)
@@ -564,7 +561,7 @@ class ThreatModelData:
                     f"Missing --threatmodel-alias for reference token '{token}' "
                     f"(found in controls: {', '.join(sorted(control_ids))})"
                 )
-            raise ValueError("\n".join(lines))
+            raise ValueError("\n".join(lines)) # instead of a hard fail, add a logging info. AI!
 
         # Extend selected IDs with referenced TMs' aws_data_perimeter IDs
         referenced_tms: list[ThreatModelData] = []
