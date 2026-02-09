@@ -561,7 +561,7 @@ class ThreatModelData:
                     f"Missing --threatmodel-alias for reference token '{token}' "
                     f"(found in controls: {', '.join(sorted(control_ids))})"
                 )
-            raise ValueError("\n".join(lines)) # instead of a hard fail, add a logging info. AI!
+            logging.info("\n".join(lines))
 
         # Extend selected IDs with referenced TMs' aws_data_perimeter IDs
         referenced_tms: list[ThreatModelData] = []

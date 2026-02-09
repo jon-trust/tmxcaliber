@@ -291,12 +291,11 @@ def test_extract_threatmodel_reference_tokens_multiple_patterns():
     ) == ["route53", "iam"]
 
 
-def test_get_csv_of_aws_data_perimeter_controls_extended_missing_alias_raises(
+def test_get_csv_of_aws_data_perimeter_controls_extended_missing_alias_logs_and_continues(
     tmp_path: Path,
 ):
     reset_threatmodel_data_list()
 
-    # Main TM: selects Service.C1 and references "IAM ThreatModel"
     create_threatmodel(
         controls={
             "Service.C1": {
@@ -308,11 +307,13 @@ def test_get_csv_of_aws_data_perimeter_controls_extended_missing_alias_raises(
         scorecard={"aws_data_perimeter": {"CategoryA": ["Service.C1"]}},
     )
 
-    with pytest.raises(ValueError, match="Missing --threatmodel-alias"):
-        ThreatModelData.get_csv_of_aws_data_perimeter_controls_extended(
-            threatmodel_dir=str(tmp_path),
-            alias_map={},  # missing
-        )
+    csv_matrix = ThreatModelData.get_csv_of_aws_data_perimeter_controls_extended(
+        threatmodel_dir=str(tmp_path),
+        alias_map={},
+    )
+
+    ids = [row[csv_matrix[0].index("id")] for row in csv_matrix[1:]]
+    assert ids == ["Service.C1"]
 
 
 def test_get_csv_of_aws_data_perimeter_controls_extended_alias_points_to_missing_tm_raises(
@@ -341,8 +342,6 @@ def test_get_csv_of_aws_data_perimeter_controls_extended_alias_points_to_missing
 def test_get_csv_of_aws_data_perimeter_controls_extended_happy_path(tmp_path: Path):
     reset_threatmodel_data_list()
 
-    # Main TM has two controls; only C1 is in its aws_data_perimeter.
-    # C1 references IAM TM, whose aws_data_perimeter includes Service.C2.
     create_threatmodel(
         controls={
             "Service.C1": {
@@ -359,7 +358,6 @@ def test_get_csv_of_aws_data_perimeter_controls_extended_happy_path(tmp_path: Pa
         scorecard={"aws_data_perimeter": {"CategoryA": ["Service.C1"]}},
     )
 
-    # Write referenced TM JSON into threatmodel-dir
     ref_json = {
         "metadata": {"name": "IAM", "provider": "aws", "service": "iam"},
         "threats": {},
