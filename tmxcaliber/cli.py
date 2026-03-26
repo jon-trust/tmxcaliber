@@ -578,7 +578,9 @@ def main():
                     params.filter_obj.controls, params.exclude
                 )
             else:
-                csv_output = ThreatModelData.get_csv_of_controls()
+                csv_output = ThreatModelData.get_csv_of_controls(
+                    params.filter_obj.controls, params.exclude
+                )
 
         output_result(params.output, csv_output, "csv_list")
 

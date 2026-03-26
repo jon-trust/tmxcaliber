@@ -326,17 +326,33 @@ class ThreatModelData:
         return csv_matrix
 
     @classmethod
-    def get_csv_of_controls(cls):
+    def get_csv_of_controls(
+        cls, control_filter: Optional[List[str]] = None, exclude: bool = False
+    ):
         if (
             not cls.threatmodel_data_list
             or not cls.threatmodel_data_list[0].get_json()["controls"]
         ):
             return []
 
-        controls_by_tm = [
-            threatmodel_data.get_json()["controls"]
-            for threatmodel_data in cls.threatmodel_data_list
-        ]
+        controls_by_tm: list[dict] = []
+        if control_filter:
+            filtered_set = {control_id.lower() for control_id in control_filter}
+
+            for threatmodel_data in cls.threatmodel_data_list:
+                tm_controls = threatmodel_data.get_json()["controls"]
+                subset: dict = {}
+                for control_id, control_data in tm_controls.items():
+                    in_filter = control_id.lower() in filtered_set
+                    if (exclude and not in_filter) or ((not exclude) and in_filter):
+                        subset[control_id] = control_data
+                controls_by_tm.append(sort_dict_by_id(subset))
+        else:
+            controls_by_tm = [
+                threatmodel_data.get_json()["controls"]
+                for threatmodel_data in cls.threatmodel_data_list
+            ]
+
         return cls._get_csv_of_controls_from_controls_dict(
             cls.threatmodel_data_list, controls_by_tm=controls_by_tm
         )

@@ -274,3 +274,43 @@ def test_get_csv_of_aws_data_perimeter_controls_case_insensitive_na():
     assert csv_matrix == [["id"], ["Service.C3"]]
 
 
+def test_get_csv_of_controls_with_ids_filter_inclusive():
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        controls={
+            "Service.C1": {"objective": "CO1", "retired": False},
+            "Service.C2": {"objective": "CO1", "retired": False},
+        }
+    )
+
+    csv_matrix = ThreatModelData.get_csv_of_controls(["service.c2"], exclude=False)
+
+    assert csv_matrix[0] == [
+        "objective",
+        "objective_description",
+        "id",
+        "retired",
+    ]
+    assert csv_matrix[1:] == [["CO1", "", "Service.C2", False]]
+
+
+def test_get_csv_of_controls_with_ids_filter_exclusive():
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        controls={
+            "Service.C1": {"objective": "CO1", "retired": False},
+            "Service.C2": {"objective": "CO1", "retired": False},
+        }
+    )
+
+    csv_matrix = ThreatModelData.get_csv_of_controls(["service.c2"], exclude=True)
+
+    assert csv_matrix[0] == [
+        "objective",
+        "objective_description",
+        "id",
+        "retired",
+    ]
+    assert csv_matrix[1:] == [["CO1", "", "Service.C1", False]]
+
+
