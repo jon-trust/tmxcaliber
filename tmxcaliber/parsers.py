@@ -146,10 +146,14 @@ def add_list_parser(subparsers):
         add_exclude_flag(control_list_parser)
         add_ids_filter_argument(control_list_parser)
         control_list_parser.add_argument(
-            "--aws-data-perimeter-only",
-            action="store_true",
+            "--type",
+            type=str,
+            choices=["ALL", "AWS_DATA_PERIMETER"],
+            default="ALL",
             help=(
-                "output only control IDs referenced by scorecard.aws_data_perimeter "
+                "Select the controls list type.\n"
+                "1) ALL: all controls (default)\n"
+                "2) AWS_DATA_PERIMETER: only control IDs referenced by scorecard.aws_data_perimeter "
                 "(excluding NA categories)."
             ),
         )
