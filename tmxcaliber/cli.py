@@ -208,25 +208,6 @@ def validate(parser: ArgumentParser) -> Namespace:
             args.filter_obj = Filter(severity=args.severity, ids=args.ids)
         if args.list_type == ListOperation.controls:
             args.filter_obj = Filter(ids=args.ids)
-            if getattr(args, "extend_references", False):
-                if not getattr(args, "aws_data_perimeter_only", False):
-                    parser.error("--extend-references requires --aws-data-perimeter-only")
-                if not getattr(args, "threatmodel_dir", None):
-                    parser.error("--extend-references requires --threatmodel-dir")
-
-                try:
-                    args.threatmodel_alias_map = parse_threatmodel_aliases(
-                        getattr(args, "threatmodel_alias", [])
-                    )
-                except ValueError as exc:
-                    parser.error(str(exc))
-
-                if not args.threatmodel_alias_map:
-                    parser.error(
-                        "--extend-references requires at least one --threatmodel-alias"
-                    )
-            else:
-                args.threatmodel_alias_map = {}
     return args
 
 
