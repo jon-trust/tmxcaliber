@@ -291,9 +291,6 @@ class ThreatModelData:
         if not threatmodel_data_list or not controls_by_tm or not controls_by_tm[0]:
             return []
 
-        control_objectives = threatmodel_data_list[0].get_json().get(
-            "control_objectives", {}
-        )
         first_controls = controls_by_tm[0]
 
         all_fieldnames = [
@@ -310,14 +307,22 @@ class ThreatModelData:
         csv_matrix.append(ordered_fieldnames)
 
         for threatmodel_data, controls in zip(threatmodel_data_list, controls_by_tm):
+            control_objectives = threatmodel_data.get_json().get(
+                "control_objectives", {}
+            )
+
             for key, value in controls.items():
                 objective_id = value.get("objective")
-                if objective_id in control_objectives:
+                co_description = ""
+                if (
+                    objective_id
+                    and isinstance(control_objectives, dict)
+                    and objective_id in control_objectives
+                ):
                     co_description = control_objectives[objective_id].get(
                         "description", ""
                     )
-                else:
-                    co_description = ""
+
                 value["objective_description"] = co_description
                 value["id"] = key
                 row = [value.get(fieldname, "") for fieldname in ordered_fieldnames]

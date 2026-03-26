@@ -314,6 +314,37 @@ def test_get_csv_of_controls_with_ids_filter_exclusive():
     assert csv_matrix[1:] == [["CO1", "", "Service.C1", False]]
 
 
+def test_get_csv_of_controls_includes_objective_description_per_file():
+    reset_threatmodel_data_list()
+
+    create_threatmodel(
+        controls={"Service.C1": {"objective": "Service.CO1", "retired": False}},
+        scorecard={},
+    ).threatmodel_json["control_objectives"] = {
+        "Service.CO1": {"description": "Objective 1"},
+    }
+
+    create_threatmodel(
+        controls={"Service.C2": {"objective": "Service.CO2", "retired": False}},
+        scorecard={},
+    ).threatmodel_json["control_objectives"] = {
+        "Service.CO2": {"description": "Objective 2"},
+    }
+
+    csv_matrix = ThreatModelData.get_csv_of_controls()
+
+    # Header
+    assert csv_matrix[0] == [
+        "objective",
+        "objective_description",
+        "id",
+        "retired",
+    ]
+
+    assert ["Service.CO1", "Objective 1", "Service.C1", False] in csv_matrix[1:]
+    assert ["Service.CO2", "Objective 2", "Service.C2", False] in csv_matrix[1:]
+
+
 def test_list_controls_resolver_aws_data_perimeter_exclude_without_ids():
     from tmxcaliber.lib.control_selector import resolve_control_ids
     from tmxcaliber.lib.filter import Filter
