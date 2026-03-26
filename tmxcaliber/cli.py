@@ -567,8 +567,11 @@ def main():
             generate_pngs(binary, params.fc_dir, params.out_dir, 1500)
 
     elif params.operation == Operation.list:
+        models: list[ThreatModelData] = data if isinstance(data, list) else []
+        ThreatModelData.threatmodel_data_list = models
+
         if params.list_type == ListOperation.threats:
-            for threatmodel_data in ThreatModelData.threatmodel_data_list:
+            for threatmodel_data in models:
                 FilterApplier(params.filter_obj, params.exclude).apply_filter(
                     threatmodel_data
                 )
@@ -578,7 +581,7 @@ def main():
             # Selection is handled by a resolver to keep list semantics explicit and extensible.
             ids_were_provided = bool(getattr(params, "ids", None))
             control_ids = resolve_control_ids(
-                ThreatModelData.threatmodel_data_list,
+                models,
                 list_type=params.type,
                 filter_obj=params.filter_obj,
                 exclude=params.exclude,
