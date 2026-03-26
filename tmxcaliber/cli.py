@@ -28,6 +28,7 @@ from .lib.change_log import generate_change_log
 from .lib.errors import FeatureClassCycleError, BinaryNotFound
 from .lib.scf import get_scf_data
 from .lib.tools import sort_by_id
+from .lib.control_selector import resolve_control_ids
 from .opacity import generate_xml
 from .opacity import generate_pngs
 from . import parsers
@@ -566,21 +567,24 @@ def main():
             generate_pngs(binary, params.fc_dir, params.out_dir, 1500)
 
     elif params.operation == Operation.list:
-        for threatmodel_data in ThreatModelData.threatmodel_data_list:
-            FilterApplier(params.filter_obj, params.exclude).apply_filter(
-                threatmodel_data
-            )
         if params.list_type == ListOperation.threats:
+            for threatmodel_data in ThreatModelData.threatmodel_data_list:
+                FilterApplier(params.filter_obj, params.exclude).apply_filter(
+                    threatmodel_data
+                )
             csv_output = ThreatModelData.get_csv_of_threats()
+
         if params.list_type == ListOperation.controls:
-            if params.type == "AWS_DATA_PERIMETER":
-                csv_output = ThreatModelData.get_csv_of_aws_data_perimeter_controls(
-                    params.filter_obj.controls, params.exclude
-                )
-            else:
-                csv_output = ThreatModelData.get_csv_of_controls(
-                    params.filter_obj.controls, params.exclude
-                )
+            # Selection is handled by a resolver to keep list semantics explicit and extensible.
+            ids_were_provided = bool(getattr(params, "ids", None))
+            control_ids = resolve_control_ids(
+                ThreatModelData.threatmodel_data_list,
+                list_type=params.type,
+                filter_obj=params.filter_obj,
+                exclude=params.exclude,
+                ids_were_provided=ids_were_provided,
+            )
+            csv_output = ThreatModelData.get_csv_of_controls(control_ids, exclude=False)
 
         output_result(params.output, csv_output, "csv_list")
 

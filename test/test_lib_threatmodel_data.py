@@ -314,3 +314,62 @@ def test_get_csv_of_controls_with_ids_filter_exclusive():
     assert csv_matrix[1:] == [["CO1", "", "Service.C1", False]]
 
 
+def test_list_controls_resolver_aws_data_perimeter_exclude_without_ids():
+    from tmxcaliber.lib.control_selector import resolve_control_ids
+    from tmxcaliber.lib.filter import Filter
+
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        controls={
+            "Service.C1": {"objective": "S3.CO40", "retired": False},
+            "Service.C2": {"objective": "S3.CO40", "retired": False},
+            "Service.C3": {"objective": "S3.CO41", "retired": False},
+        },
+        scorecard={
+            "aws_data_perimeter": {
+                "Perimeter": ["Service.C1", "Service.C2"],
+                "NA": ["Service.C999"],
+            }
+        },
+    )
+
+    ids = resolve_control_ids(
+        ThreatModelData.threatmodel_data_list,
+        list_type="AWS_DATA_PERIMETER",
+        filter_obj=Filter(ids=""),
+        exclude=True,
+        ids_were_provided=False,
+    )
+
+    assert ids == ["Service.C3"]
+
+
+def test_list_controls_resolver_aws_data_perimeter_intersect_control_objective():
+    from tmxcaliber.lib.control_selector import resolve_control_ids
+    from tmxcaliber.lib.filter import Filter
+
+    reset_threatmodel_data_list()
+    create_threatmodel(
+        controls={
+            "Service.C1": {"objective": "S3.CO40", "retired": False},
+            "Service.C2": {"objective": "S3.CO41", "retired": False},
+            "Service.C3": {"objective": "S3.CO40", "retired": False},
+        },
+        scorecard={
+            "aws_data_perimeter": {
+                "Perimeter": ["Service.C1", "Service.C2", "Service.C3"],
+            }
+        },
+    )
+
+    ids = resolve_control_ids(
+        ThreatModelData.threatmodel_data_list,
+        list_type="AWS_DATA_PERIMETER",
+        filter_obj=Filter(ids="S3.CO40"),
+        exclude=False,
+        ids_were_provided=True,
+    )
+
+    assert ids == ["Service.C1", "Service.C3"]
+
+
