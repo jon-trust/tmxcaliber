@@ -269,7 +269,7 @@ def add_exclude_flag(*parsers: ArgumentParser):
         parser.add_argument(
             "--exclude",
             action="store_true",
-            help="Enable exclusion mode. Items specified will be excluded from the output.",
+            help="Enable exclusion mode. Items specified in --ids will be excluded from the output.",
         )
 
 
