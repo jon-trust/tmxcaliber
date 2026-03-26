@@ -288,10 +288,12 @@ class ThreatModelData:
         *,
         controls_by_tm: list[dict],
     ) -> list[list[str]]:
-        if not threatmodel_data_list or not controls_by_tm or not controls_by_tm[0]:
+        if not threatmodel_data_list or not controls_by_tm:
             return []
 
-        first_controls = controls_by_tm[0]
+        first_controls = next((controls for controls in controls_by_tm if controls), None)
+        if not first_controls:
+            return []
 
         all_fieldnames = [
             field
@@ -334,9 +336,13 @@ class ThreatModelData:
     def get_csv_of_controls(
         cls, control_filter: Optional[List[str]] = None, exclude: bool = False
     ):
-        if (
-            not cls.threatmodel_data_list
-            or not cls.threatmodel_data_list[0].get_json()["controls"]
+        if not cls.threatmodel_data_list:
+            return []
+
+        if not any(
+            isinstance(threatmodel_data.get_json().get("controls"), dict)
+            and threatmodel_data.get_json().get("controls")
+            for threatmodel_data in cls.threatmodel_data_list
         ):
             return []
 
