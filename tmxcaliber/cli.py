@@ -587,43 +587,6 @@ def main():
                 exclude=params.exclude,
                 ids_were_provided=ids_were_provided,
             )
-
-            print("DEBUG list controls")
-            print(f"DEBUG source={getattr(params, 'source', None)!r}")
-            print(f"DEBUG models_count={len(models)}")
-            print(f"DEBUG params.type={getattr(params, 'type', None)!r}")
-            print(f"DEBUG params.ids={getattr(params, 'ids', None)!r}")
-            print(f"DEBUG exclude={getattr(params, 'exclude', None)!r}")
-            print(f"DEBUG ids_were_provided={ids_were_provided!r}")
-            print(
-                "DEBUG filter_obj:"
-                f" ids={getattr(params.filter_obj, 'ids', None)!r}"
-                f" controls={getattr(params.filter_obj, 'controls', None)!r}"
-                f" control_objectives={getattr(params.filter_obj, 'control_objectives', None)!r}"
-                f" threats={getattr(params.filter_obj, 'threats', None)!r}"
-                f" feature_classes={getattr(params.filter_obj, 'feature_classes', None)!r}"
-            )
-
-            if models:
-                first_tm_controls = models[0].get_json().get("controls")
-                print(
-                    "DEBUG first_tm_controls_type="
-                    f"{type(first_tm_controls).__name__}"
-                    f" first_tm_controls_len={len(first_tm_controls) if isinstance(first_tm_controls, dict) else 'n/a'}"
-                )
-                shown = 0
-                for cid, cdata in (first_tm_controls or {}).items():
-                    if isinstance(cdata, dict) and "objective" in cdata:
-                        print(
-                            f"DEBUG example_control: {cid} objective={cdata.get('objective')!r}"
-                        )
-                        shown += 1
-                        if shown >= 5:
-                            break
-
-            print(f"DEBUG resolved_control_ids_count={len(control_ids)}")
-            print(f"DEBUG resolved_control_ids_sample={control_ids[:20]!r}")
-
             csv_output = ThreatModelData.get_csv_of_controls(control_ids, exclude=False)
 
         output_result(params.output, csv_output, "csv_list")
