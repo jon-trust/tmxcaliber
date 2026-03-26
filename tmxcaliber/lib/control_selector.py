@@ -91,9 +91,17 @@ def expand_ids_to_control_ids_lower(
         for control_id, control_data in _get_controls_dict(tm).items():
             if not isinstance(control_data, dict):
                 continue
-            objective = control_data.get("objective", "")
-            if isinstance(objective, str) and objective.lower() in requested_co:
-                requested.add(control_id.lower())
+
+            objective = control_data.get("objective")
+
+            if isinstance(objective, str):
+                if objective.strip().lower() in requested_co:
+                    requested.add(control_id.lower())
+            elif isinstance(objective, list):
+                for obj in objective:
+                    if isinstance(obj, str) and obj.strip().lower() in requested_co:
+                        requested.add(control_id.lower())
+                        break
 
     return requested
 
