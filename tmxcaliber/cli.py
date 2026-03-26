@@ -624,8 +624,6 @@ def main():
             print(f"DEBUG resolved_control_ids_count={len(control_ids)}")
             print(f"DEBUG resolved_control_ids_sample={control_ids[:20]!r}")
 
-            exit(0)
-
             csv_output = ThreatModelData.get_csv_of_controls(control_ids, exclude=False)
 
         output_result(params.output, csv_output, "csv_list")
