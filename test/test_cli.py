@@ -1,5 +1,6 @@
 import pytest
 import unittest
+import sys
 from tmxcaliber.cli import (
     _get_version,
     validate,
