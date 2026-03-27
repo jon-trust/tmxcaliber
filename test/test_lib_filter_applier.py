@@ -26,24 +26,16 @@ def create_connected_threatmodel() -> ThreatModelData:
         feature_classes={
             "Someservice.FC1": {"class_relationship": []},
             "Someservice.FC5": {
-                "class_relationship": [
-                    {"type": "parent", "class": "Someservice.FC1"}
-                ]
+                "class_relationship": [{"type": "parent", "class": "Someservice.FC1"}]
             },
             "Someservice.FC8": {
-                "class_relationship": [
-                    {"type": "parent", "class": "Someservice.FC5"}
-                ]
+                "class_relationship": [{"type": "parent", "class": "Someservice.FC5"}]
             },
             "Someservice.FC10": {
-                "class_relationship": [
-                    {"type": "parent", "class": "Someservice.FC5"}
-                ]
+                "class_relationship": [{"type": "parent", "class": "Someservice.FC5"}]
             },
             "Someservice.FC11": {
-                "class_relationship": [
-                    {"type": "parent", "class": "Someservice.FC5"}
-                ]
+                "class_relationship": [{"type": "parent", "class": "Someservice.FC5"}]
             },
             "Someservice.FC19": {
                 "class_relationship": [
@@ -77,14 +69,14 @@ def create_connected_threatmodel() -> ThreatModelData:
             "Someservice.C3": {
                 "objective": "Someservice.CO3",
                 "coso": "Assurance",
-                "feature_class": ["Someservice.FC10"],
-                "mitigate": [{"threat": "Someservice.T2"}],
+                "feature_class": ["Someservice.FC8", "Someservice.FC10"],
+                "mitigate": [],
             },
             "Someservice.C4": {
                 "objective": "Someservice.CO4",
                 "coso": "Assurance",
-                "feature_class": ["Someservice.FC8"],
-                "mitigate": [{"threat": "Someservice.T1"}],
+                "feature_class": ["Someservice.FC8", "Someservice.FC10"],
+                "mitigate": [],
             },
         },
         control_objectives={
@@ -187,7 +179,10 @@ class TestFilterApplier:
         assert threatmodel_data.controls["Someservice.C1"]["mitigate"] == [
             {"threat": "Someservice.T2"}
         ]
-        assert threatmodel_data.controls["Someservice.C1"]["assured_by"] == "Someservice.C3"
+        assert (
+            threatmodel_data.controls["Someservice.C1"]["assured_by"]
+            == "Someservice.C3"
+        )
         assert set(threatmodel_data.control_objectives.keys()) == {
             "Someservice.CO1",
             "Someservice.CO2",
