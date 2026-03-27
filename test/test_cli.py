@@ -568,3 +568,146 @@ def test_validate_and_get_framework_file_not_found():
         with pytest.raises(FileNotFoundError) as exc_info:
             validate_and_get_framework("nonexistent_path.csv", "Framework")
         assert "File not found" in str(exc_info.value)
+
+
+def test_main_list_controls_aws_data_perimeter_e2e(tmp_path, monkeypatch, capsys):
+    from tmxcaliber import cli as cli_module
+    from tmxcaliber.lib.threatmodel_data import ThreatModelData
+
+    ThreatModelData.threatmodel_data_list = []
+
+    tm1 = {
+        "metadata": {"release": "1710000000", "name": "TM1"},
+        "controls": {
+            "Svc.C2": {"objective": "Svc.CO1", "retired": False},
+            "Svc.C10": {"objective": "Svc.CO1", "retired": False},
+        },
+        "control_objectives": {"Svc.CO1": {"description": "Objective 1"}},
+        "scorecard": {"aws_data_perimeter": {"Perimeter": ["Svc.C10", "Svc.C2"]}},
+        "threats": {},
+        "actions": {},
+        "feature_classes": {},
+    }
+    tm2 = {
+        "metadata": {"release": "1710000001", "name": "TM2"},
+        "controls": {"Svc.C1": {"objective": "Svc.CO2", "retired": False}},
+        "control_objectives": {"Svc.CO2": {"description": "Objective 2"}},
+        "scorecard": {"aws_data_perimeter": {"NA": ["Svc.C1"], "Other": ["Svc.C1"]}},
+        "threats": {},
+        "actions": {},
+        "feature_classes": {},
+    }
+
+    (tmp_path / "tm1.json").write_text(json.dumps(tm1), encoding="utf-8")
+    (tmp_path / "tm2.json").write_text(json.dumps(tm2), encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["prog", "list", "controls", str(tmp_path), "--type", "AWS_DATA_PERIMETER"],
+    )
+
+    cli_module.main()
+    out = capsys.readouterr().out.strip().splitlines()
+
+    assert out[0] == "objective,objective_description,id,retired"
+
+    # Expect numeric ordering by suffix across all selected controls: C1, C2, C10
+    assert out[1:] == [
+        "Svc.CO2,Objective 2,Svc.C1,False",
+        "Svc.CO1,Objective 1,Svc.C2,False",
+        "Svc.CO1,Objective 1,Svc.C10,False",
+    ]
+
+
+def test_main_filter_output_removed_writes_two_files(tmp_path, monkeypatch):
+    from tmxcaliber import cli as cli_module
+    from tmxcaliber.lib.threatmodel_data import ThreatModelData
+
+    ThreatModelData.threatmodel_data_list = []
+
+    source = tmp_path / "source.json"
+    out = tmp_path / "out.json"
+
+    tm = {
+        "metadata": {"release": "1710000000", "name": "TM"},
+        "feature_classes": {
+            "Svc.FC1": {"class_relationship": []},
+            "Svc.FC2": {"class_relationship": [{"type": "parent", "class": "Svc.FC1"}]},
+            "Svc.FC3": {"class_relationship": []},
+        },
+        "threats": {
+            "Svc.T1": {
+                "feature_class": "Svc.FC2",
+                "cvss_severity": "High",
+                "name": "Threat1",
+                "access": {"AND": ["perm.read"]},
+            },
+            "Svc.T2": {
+                "feature_class": "Svc.FC3",
+                "cvss_severity": "Low",
+                "name": "Threat2",
+                "access": {"AND": ["perm.write"]},
+            },
+        },
+        "control_objectives": {
+            "Svc.CO1": {"description": "CO1"},
+            "Svc.CO2": {"description": "CO2"},
+        },
+        "controls": {
+            "Svc.C1": {
+                "feature_class": ["Svc.FC2", "Svc.FC3"],
+                "objective": "Svc.CO1",
+                "coso": "Prevent",
+                "description": "C1",
+                "weighted_priority": "High",
+                "assured_by": "",
+                "mitigate": [{"threat": "Svc.T1"}, {"threat": "Svc.T2"}],
+            },
+            "Svc.C2": {
+                "feature_class": ["Svc.FC3"],
+                "objective": "Svc.CO2",
+                "coso": "Prevent",
+                "description": "C2",
+                "weighted_priority": "Low",
+                "assured_by": "",
+                "mitigate": [{"threat": "Svc.T2"}],
+            },
+        },
+        "actions": {
+            "Svc.A1": {"feature_class": "Svc.FC2"},
+            "Svc.A2": {"feature_class": "Svc.FC3"},
+        },
+    }
+
+    source.write_text(json.dumps(tm), encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "filter",
+            "--output",
+            str(out),
+            "--output-removed",
+            "--severity",
+            "high",
+            str(source),
+        ],
+    )
+
+    cli_module.main()
+
+    assert out.exists()
+    out_json = json.loads(out.read_text(encoding="utf-8"))
+    assert "threats" in out_json
+    assert list(out_json["threats"].keys()) == ["Svc.T1"]
+
+    removed_path = tmp_path / "out_removed.json"
+    assert removed_path.exists()
+    removed_json = json.loads(removed_path.read_text(encoding="utf-8"))
+
+    # At minimum, the removed output should include removed threats/controls.
+    assert "threats" in removed_json
+    assert "Svc.T2" in removed_json["threats"] or "Svc.T2" in str(removed_json)
