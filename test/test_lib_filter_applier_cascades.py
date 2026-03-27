@@ -128,7 +128,18 @@ def test_filter_by_permissions_exclude(rich_tm: ThreatModelData):
         rich_tm
     )
 
+    # Excluding permissions filters threats. Controls are then kept/removed based on
+    # whether they still mitigate the remaining threats.
     assert list(rich_tm.threats.keys()) == ["Svc.T2"]
-    assert "Svc.C1" not in rich_tm.controls.keys()
-    assert "Svc.CO1" not in rich_tm.control_objectives
+
+    # C1 still mitigates T2, so it remains, but is pruned to only the remaining threat.
+    assert "Svc.C1" in rich_tm.controls
+    assert rich_tm.controls["Svc.C1"]["mitigate"] == [{"threat": "Svc.T2"}]
+
+    # Assurance control is pulled by get_controls_for_current_threats() via assured_by
+    assert "Svc.CA1" in rich_tm.controls
+
+    assert "Svc.CO1" in rich_tm.control_objectives
+    assert "Svc.CO2" in rich_tm.control_objectives
+
     assert list(rich_tm.actions.keys()) == ["Svc.A2"]
