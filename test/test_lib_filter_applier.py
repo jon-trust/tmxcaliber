@@ -172,6 +172,7 @@ class TestFilterApplier:
             "Someservice.C1",
             "Someservice.C2",
             "Someservice.C3",
+            "Someservice.C4",
         }
         assert threatmodel_data.controls["Someservice.C1"]["feature_class"] == [
             "Someservice.FC10"
@@ -179,14 +180,21 @@ class TestFilterApplier:
         assert threatmodel_data.controls["Someservice.C1"]["mitigate"] == [
             {"threat": "Someservice.T2"}
         ]
+        assert threatmodel_data.controls["Someservice.C3"]["feature_class"] == [
+            "Someservice.FC10"
+        ]
+        assert threatmodel_data.controls["Someservice.C4"]["feature_class"] == [
+            "Someservice.FC10"
+        ]
         assert (
             threatmodel_data.controls["Someservice.C1"]["assured_by"]
-            == "Someservice.C3"
+            == "Someservice.C3,Someservice.C4"
         )
         assert set(threatmodel_data.control_objectives.keys()) == {
             "Someservice.CO1",
             "Someservice.CO2",
             "Someservice.CO3",
+            "Someservice.CO4",
         }
         assert set(threatmodel_data.actions.keys()) == {
             "Someservice.A2",
