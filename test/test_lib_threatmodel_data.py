@@ -4,11 +4,17 @@ from tmxcaliber.lib.threatmodel_data import ThreatModelData, get_permissions
 
 
 def create_threatmodel(
-    feature_classes=None, threats=None, controls=None, scorecard=None
+    feature_classes=None,
+    threats=None,
+    controls=None,
+    scorecard=None,
+    control_objectives=None,
 ):
     base_json = {
         "metadata": {"name": "Model"},
-        "control_objectives": {},
+        "control_objectives": (
+            control_objectives if control_objectives is not None else {}
+        ),
         "actions": {},
     }
     base_json["threats"] = threats if threats is not None else {}
@@ -320,16 +326,14 @@ def test_get_csv_of_controls_includes_objective_description_per_file():
     create_threatmodel(
         controls={"Service.C1": {"objective": "Service.CO1", "retired": False}},
         scorecard={},
-    ).threatmodel_json["control_objectives"] = {
-        "Service.CO1": {"description": "Objective 1"},
-    }
+        control_objectives={"Service.CO1": {"description": "Objective 1"}},
+    )
 
     create_threatmodel(
         controls={"Service.C2": {"objective": "Service.CO2", "retired": False}},
         scorecard={},
-    ).threatmodel_json["control_objectives"] = {
-        "Service.CO2": {"description": "Objective 2"},
-    }
+        control_objectives={"Service.CO2": {"description": "Objective 2"}},
+    )
 
     csv_matrix = ThreatModelData.get_csv_of_controls()
 
