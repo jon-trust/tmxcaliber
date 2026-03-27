@@ -613,11 +613,11 @@ def test_main_list_controls_aws_data_perimeter_e2e(tmp_path, monkeypatch, capsys
 
     assert out[0] == "objective,objective_description,id,retired"
 
-    # Expect numeric ordering by suffix across all selected controls: C1, C2, C10
+    # Output is emitted TM-by-TM (directory load order), with numeric ordering within each TM.
     assert out[1:] == [
-        "Svc.CO2,Objective 2,Svc.C1,False",
         "Svc.CO1,Objective 1,Svc.C2,False",
         "Svc.CO1,Objective 1,Svc.C10,False",
+        "Svc.CO2,Objective 2,Svc.C1,False",
     ]
 
 
