@@ -32,8 +32,16 @@ class ThreatModelDataList:
         return output
 
 
-def get_permissions(access: dict, add_optional: bool = True) -> list:
-    permissions = []
+def get_permissions(access: dict | None, add_optional: bool = True) -> list[str]:
+    """
+    Extract a unique, lower-cased list of permissions from a ThreatModel `access` block.
+
+    If add_optional is False, permissions under the OPTIONAL operator are ignored.
+    """
+    if not isinstance(access, dict):
+        return []
+
+    permissions: list[str] = []
 
     for key, perms in access.items():
         if not add_optional and key == "OPTIONAL":
@@ -48,7 +56,8 @@ def get_permissions(access: dict, add_optional: bool = True) -> list:
                 elif isinstance(perm, dict):
                     permissions.extend(get_permissions(perm, add_optional))
 
-    return [x.lower() for x in list(set(permissions))]
+    # Unique + normalised
+    return sorted({x.lower() for x in permissions})
 
 
 def upgrade_to_latest_template_version(tm_json):
@@ -125,21 +134,41 @@ class ThreatModelData:
         return list(set(feature_class_hierarchy.get_ancestors(feature_class_id)))
 
     def get_controls_for_current_threats(self) -> dict:
-        controls = {}
+        controls: dict = {}
         threat_ids = set(self.threats.keys())
         for control_id, control in self.controls.items():
+            feature_classes = control.get("feature_class", [])
+            if not isinstance(feature_classes, list):
+                feature_classes = []
+
             # Check if the control's feature class is in the list of feature classes
-            if any(fc in control["feature_class"] for fc in self.feature_classes):
+            if any(fc in feature_classes for fc in self.feature_classes):
                 # Check if any mitigation in the control is related to the threats we have
+                mitigate = control.get("mitigate", [])
+                if not isinstance(mitigate, list):
+                    mitigate = []
+
                 if any(
-                    mitigation.get("threat") in threat_ids
-                    for mitigation in control.get("mitigate", [])
+                    isinstance(mitigation, dict)
+                    and mitigation.get("threat") in threat_ids
+                    for mitigation in mitigate
                 ):
                     controls[control_id] = control
+
         for control_id, control in controls.copy().items():
-            for assurance_control_id in control["assured_by"].split(","):
-                if assurance_control_id and assurance_control_id not in controls:
+            assured_by = control.get("assured_by") or ""
+            if not isinstance(assured_by, str):
+                assured_by = ""
+
+            for assurance_control_id in assured_by.split(","):
+                assurance_control_id = assurance_control_id.strip()
+                if (
+                    assurance_control_id
+                    and assurance_control_id not in controls
+                    and assurance_control_id in self.controls
+                ):
                     controls[assurance_control_id] = self.controls[assurance_control_id]
+
         return sort_dict_by_id(controls)
 
     def get_upstream_dependent_controls(self, control_id) -> dict:
