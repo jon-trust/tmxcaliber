@@ -129,6 +129,6 @@ def test_filter_by_permissions_exclude(rich_tm: ThreatModelData):
     )
 
     assert list(rich_tm.threats.keys()) == ["Svc.T2"]
-    assert "Svc.C1" not in rich_tm.controls
+    assert "Svc.C1" not in rich_tm.controls.keys()
     assert "Svc.CO1" not in rich_tm.control_objectives
     assert list(rich_tm.actions.keys()) == ["Svc.A2"]
