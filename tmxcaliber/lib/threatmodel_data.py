@@ -69,8 +69,6 @@ def upgrade_to_latest_template_version(tm_json):
     return tm_json
 
 
-
-
 class ThreatModelData:
 
     threatmodel_data_list = []
@@ -291,7 +289,9 @@ class ThreatModelData:
         if not threatmodel_data_list or not controls_by_tm:
             return []
 
-        first_controls = next((controls for controls in controls_by_tm if controls), None)
+        first_controls = next(
+            (controls for controls in controls_by_tm if controls), None
+        )
         if not first_controls:
             return []
 
@@ -428,7 +428,6 @@ class ThreatModelData:
         return cls._get_csv_of_controls_from_controls_dict(
             cls.threatmodel_data_list, controls_by_tm=controls_by_tm
         )
-
 
 
 def get_classified_cvssed_control_ids_by_co(
