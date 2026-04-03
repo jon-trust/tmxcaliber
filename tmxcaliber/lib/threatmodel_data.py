@@ -285,26 +285,32 @@ class ThreatModelData:
 
     @classmethod
     def get_csv_of_threats(cls):
-        if (
-            not cls.threatmodel_data_list
-            or not cls.threatmodel_data_list[0].get_json()["threats"]
-        ):
+        if not cls.threatmodel_data_list:
             return []
+
+        first_threats = next(
+            (
+                threatmodel_data.get_json().get("threats", {})
+                for threatmodel_data in cls.threatmodel_data_list
+                if threatmodel_data.get_json().get("threats")
+            ),
+            None,
+        )
+        if not first_threats:
+            return []
+
         fieldnames = ["id"] + list(
-            cls.threatmodel_data_list[0]
-            .get_json()["threats"][
-                next(iter(cls.threatmodel_data_list[0].get_json()["threats"]))
-            ]
-            .keys()
+            first_threats[next(iter(first_threats))].keys()
         )
         csv_matrix = []
         csv_matrix.append(fieldnames)
         for threatmodel_data in cls.threatmodel_data_list:
             threats = threatmodel_data.threats
             for key, value in threats.items():
-                value["id"] = key
-                value["access"] = json.dumps(value["access"])
-                row = [value.get(fieldname, "") for fieldname in fieldnames]
+                row_data = dict(value)
+                row_data["id"] = key
+                row_data["access"] = json.dumps(row_data["access"])
+                row = [row_data.get(fieldname, "") for fieldname in fieldnames]
                 csv_matrix.append(row)
         return csv_matrix
 
@@ -321,6 +327,16 @@ class ThreatModelData:
         first_controls = next(
             (controls for controls in controls_by_tm if controls), None
         )
+        if not first_controls:
+            first_controls = next(
+                (
+                    controls
+                    for threatmodel_data in threatmodel_data_list
+                    for controls in [threatmodel_data.get_json().get("controls", {})]
+                    if isinstance(controls, dict) and controls
+                ),
+                None,
+            )
         if not first_controls:
             return []
 
@@ -376,7 +392,7 @@ class ThreatModelData:
             return []
 
         controls_by_tm: list[dict] = []
-        if control_filter:
+        if control_filter is not None:
             filtered_set = {control_id.lower() for control_id in control_filter}
 
             for threatmodel_data in cls.threatmodel_data_list:
@@ -451,7 +467,7 @@ class ThreatModelData:
         if not ids_list:
             return [["id"]]
 
-        if not controls_by_tm or not controls_by_tm[0]:
+        if not controls_by_tm or not any(controls_by_tm):
             return [["id"]]
 
         return cls._get_csv_of_controls_from_controls_dict(

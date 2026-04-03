@@ -2,7 +2,11 @@ from tmxcaliber.lib.tools import sort_by_id, sort_dict_by_id, sort_dict_list_by_
 
 
 def test_sort_by_id_numeric_suffix_not_lexicographic():
-    assert sort_by_id(["Svc.C2", "Svc.C10", "Svc.C1"]) == ["Svc.C1", "Svc.C2", "Svc.C10"]
+    assert sort_by_id(["Svc.C2", "Svc.C10", "Svc.C1"]) == [
+        "Svc.C1",
+        "Svc.C2",
+        "Svc.C10",
+    ]
 
 
 def test_sort_dict_by_id_preserves_value_and_orders_keys():

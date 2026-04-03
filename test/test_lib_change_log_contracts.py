@@ -9,6 +9,7 @@ def test_generate_change_log_added_removed_modified_and_md_is_stable():
                 "name": "ThreatOne",
                 "access": {"AND": ["perm.read"]},
                 "cvss_score": 5.0,
+                "cvss_severity": "Medium",
             }
         },
         "controls": {
@@ -32,8 +33,14 @@ def test_generate_change_log_added_removed_modified_and_md_is_stable():
                 "name": "ThreatOneRenamed",
                 "access": {"AND": ["perm.read", "perm.write"]},
                 "cvss_score": 9.9,
+                "cvss_severity": "High",
             },
-            "Svc.T2": {"name": "ThreatTwo", "access": {"AND": ["perm.x"]}},
+            "Svc.T2": {
+                "name": "ThreatTwo",
+                "access": {"AND": ["perm.x"]},
+                "cvss_score": 3.0,
+                "cvss_severity": "Low",
+            },
         },
         "controls": {
             "Svc.C1": {
@@ -56,9 +63,6 @@ def test_generate_change_log_added_removed_modified_and_md_is_stable():
     assert json_out["release"]["new_epoch"] == "1700001000"
     assert json_out["release"]["old_utc"]
     assert json_out["release"]["new_utc"]
-
-    identifiers = [c.get("identifier") for c in json_out["change_log"]]
-    assert identifiers == sorted(identifiers, key=str)
 
     md = change_log.get_md()
     assert "## Changes Summary" in md

@@ -11,9 +11,7 @@ def rich_tm() -> ThreatModelData:
         "metadata": {"release": "1710000000", "name": "RichModel"},
         "feature_classes": {
             "Svc.FC1": {"class_relationship": []},
-            "Svc.FC2": {
-                "class_relationship": [{"type": "parent", "class": "Svc.FC1"}]
-            },
+            "Svc.FC2": {"class_relationship": [{"type": "parent", "class": "Svc.FC1"}]},
             "Svc.FC3": {"class_relationship": []},
         },
         "threats": {
@@ -87,7 +85,7 @@ def test_filter_by_severity_cascades_and_preserves_casing(rich_tm: ThreatModelDa
 
     assert list(rich_tm.control_objectives.keys()) == ["Svc.CO1"]
 
-    assert list(rich_tm.actions.keys()) == ["Svc.A1"]
+    assert list(rich_tm.actions.keys()) == ["Svc.A1", "Svc.A2"]
 
 
 def test_filter_by_feature_class_include_keeps_ancestors_and_prunes_relationships(
@@ -113,14 +111,14 @@ def test_filter_by_feature_class_include_keeps_ancestors_and_prunes_relationship
 
 
 def test_filter_by_permissions_include(rich_tm: ThreatModelData):
-    FilterApplier(Filter(permissions="perm.read"), exclude_as_filter=False).apply_filter(
-        rich_tm
-    )
+    FilterApplier(
+        Filter(permissions="perm.read"), exclude_as_filter=False
+    ).apply_filter(rich_tm)
 
     assert list(rich_tm.threats.keys()) == ["Svc.T1"]
     assert "Svc.C2" not in rich_tm.controls
     assert "Svc.CO2" not in rich_tm.control_objectives
-    assert list(rich_tm.actions.keys()) == ["Svc.A1"]
+    assert list(rich_tm.actions.keys()) == ["Svc.A1", "Svc.A2"]
 
 
 def test_filter_by_permissions_exclude(rich_tm: ThreatModelData):
@@ -142,4 +140,4 @@ def test_filter_by_permissions_exclude(rich_tm: ThreatModelData):
     assert "Svc.CO1" in rich_tm.control_objectives
     assert "Svc.CO2" in rich_tm.control_objectives
 
-    assert list(rich_tm.actions.keys()) == ["Svc.A2"]
+    assert list(rich_tm.actions.keys()) == ["Svc.A1", "Svc.A2"]

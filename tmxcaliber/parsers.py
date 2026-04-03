@@ -158,8 +158,40 @@ def add_list_parser(subparsers):
             ),
         )
 
+    def add_list_services_parser(list_subparsers):
+        service_list_parser = list_subparsers.add_parser(
+            ListOperation.services,
+            help="List service names and their ThreatModel JSON file.",
+            formatter_class=RawTextHelpFormatter,
+        )
+        add_source_json_or_dir_argument(service_list_parser)
+        add_output_argument(service_list_parser)
+        add_format_argument(
+            service_list_parser,
+            choices=["csv", "json"],
+            default="csv",
+            help="format to output (default to CSV).",
+        )
+
+    def add_list_feature_classes_parser(list_subparsers):
+        feature_class_list_parser = list_subparsers.add_parser(
+            ListOperation.feature_classes,
+            help="List feature classes of one ThreatModel JSON file.",
+            formatter_class=RawTextHelpFormatter,
+        )
+        add_source_argument(feature_class_list_parser)
+        add_output_argument(feature_class_list_parser)
+        add_format_argument(
+            feature_class_list_parser,
+            choices=["csv", "json"],
+            default="csv",
+            help="format to output (default to CSV).",
+        )
+
     add_list_threats_parser(list_subparsers)
     add_list_controls_parser(list_subparsers)
+    add_list_services_parser(list_subparsers)
+    add_list_feature_classes_parser(list_subparsers)
 
 
 def add_map_parser(subparsers):

@@ -83,7 +83,9 @@ def expand_ids_to_control_ids_lower(
     """
     requested: set[str] = set(x.lower() for x in (filter_obj.controls or []))
 
-    requested_co: set[str] = set(x.lower() for x in (filter_obj.control_objectives or []))
+    requested_co: set[str] = set(
+        x.lower() for x in (filter_obj.control_objectives or [])
+    )
     if not requested_co:
         return requested
 
