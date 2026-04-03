@@ -299,9 +299,7 @@ class ThreatModelData:
         if not first_threats:
             return []
 
-        fieldnames = ["id"] + list(
-            first_threats[next(iter(first_threats))].keys()
-        )
+        fieldnames = ["id"] + list(first_threats[next(iter(first_threats))].keys())
         csv_matrix = []
         csv_matrix.append(fieldnames)
         for threatmodel_data in cls.threatmodel_data_list:
